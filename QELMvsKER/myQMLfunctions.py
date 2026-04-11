@@ -1,5 +1,6 @@
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 #definition on Pauli matrices
 I = np.array([[1, 0],
