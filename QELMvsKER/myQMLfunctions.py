@@ -14,6 +14,8 @@ Y = np.array([[0, -1j],
 Z = np.array([[1,  0],
               [0, -1]], dtype=complex)
 
+
+
 def  generate_dataset_pauli(N_training, N_test):
     """
     Generate a data of random quantum states (qubits) and their corresponding expectation values of the Pauli matrices.
@@ -77,5 +79,63 @@ def  generate_dataset_pauli(N_training, N_test):
         expe_test_Z[i] = np.real(np.trace(rho_test[i] @ Z))
 
     return rho_training, rho_test, expe_training_X, expe_training_Y, expe_training_Z, expe_test_X, expe_test_Y, expe_test_Z
+
+
+
+
+def generate_random_density_matrix(dim):
+    # Create a random complex matrix G
+    G = (np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim))
+    
+    # Compute G * G_dagger (makes it Hermitian and Positive)
+    A = G @ G.conj().T
+    
+    # Normalize the trace to 1
+    rho = A / np.trace(A)
+    return rho
+
+
+
+
+def density_to_bloch(rho):
+    x = np.real(np.trace(rho @ X))
+    y = np.real(np.trace(rho @ Y))
+    z = np.real(np.trace(rho @ Z))
+    return np.array([x, y, z])
+
+
+
+def plot_bloch_sphere(points):
+    fig = plt.figure(figsize=(7,7))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Draw sphere surface
+    u = np.linspace(0, 2*np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
+    x = np.outer(np.cos(u), np.sin(v))
+    y = np.outer(np.sin(u), np.sin(v))
+    z = np.outer(np.ones(np.size(u)), np.cos(v))
+    
+    ax.plot_surface(x, y, z, color='lightblue', alpha=0.1)
+
+    # Draw axes
+    ax.quiver(0,0,0, 1,0,0, color='r')
+    ax.quiver(0,0,0, 0,1,0, color='g')
+    ax.quiver(0,0,0, 0,0,1, color='b')
+
+    # Plot points
+    points = np.array(points)
+    ax.scatter(points[:,0], points[:,1], points[:,2], 
+               color='black', s=40)
+
+    ax.set_xlim([-1,1])
+    ax.set_ylim([-1,1])
+    ax.set_zlim([-1,1])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    ax.set_box_aspect([1,1,1])
+    plt.show()
 
     
