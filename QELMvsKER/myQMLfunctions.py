@@ -183,7 +183,7 @@ class QuantumKernelRegression:
             labels (Union[List[float], np.ndarray]): Corresponding labels (y_j) for
                                                     the training density matrices.
         """
-        if not density_matrices:
+        if density_matrices is None or len(density_matrices) == 0:
             raise ValueError("Training density matrices cannot be empty.")
         if len(density_matrices) != len(labels):
             raise ValueError("Number of density matrices must match number of labels.")
@@ -249,7 +249,7 @@ class QuantumKernelRegression:
         """
         if not self.K_inv.size or not self.alpha.size:
             raise RuntimeError("Model has not been fitted yet. Call .fit() first.")
-        if not new_density_matrices:
+        if new_density_matrices is None or len(new_density_matrices) == 0:
             return np.array([])
 
         n_test_samples = len(new_density_matrices)
