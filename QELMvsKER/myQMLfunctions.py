@@ -276,7 +276,7 @@ class QuantumKernelRegression:
         # If labels are real, predictions should ideally be real.
         # Taking the real part is often appropriate for real-valued regression tasks.
         return np.real(predictions)
-
+"""
 # --- 4. Example Usage ---
 if __name__ == "__main__":
     # --- Configuration ---
@@ -325,4 +325,4 @@ if __name__ == "__main__":
     # Calculate Mean Squared Error on training data
     mse = np.mean((train_predictions - train_labels)**2)
     print(f"Mean Squared Error on training data: {mse:.4f}")
-    
+"""
