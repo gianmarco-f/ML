@@ -196,13 +196,17 @@ class QuantumKernelRegression:
         
         # Initialize Gram matrix. Density matrices can be complex, so K should be complex.
         gram_matrix = np.zeros((n_samples, n_samples), dtype=complex)
+        
 
         print(f"Computing Gram matrix of size {n_samples}x{n_samples}...")
         # Compute the Gram matrix K_ij = Tr[rho_i @ rho_j]
         for i in range(n_samples):
             for j in range(n_samples):
-                gram_matrix[i, j] = quantum_kernel(self.train_density_matrices[i],
+                gram_matrix[i, j] = overlap(self.train_density_matrices[i],
                                                    self.train_density_matrices[j])
+                
+        print(gram_matrix)
+        print(np.linalg.eigvalsh(gram_matrix))
                 
         #In this section there is an optimization for the computation of the Gram matrix, due to the symmetry of the kernel
         #for i in range(n_samples):
@@ -224,12 +228,13 @@ class QuantumKernelRegression:
         print("Inverting Gram matrix...")
         # Invert the regularized Gram matrix
         try:
-            self.K_inv = np.linalg.inv(gram_matrix_reg)
+            self.K_inv = np.linalg.pinv(gram_matrix_reg)
             print("Gram matrix inverted successfully.")
         except np.linalg.LinAlgError as e:
             print(f"Error: Gram matrix could not be inverted. It might be singular or ill-conditioned even with regularization. Error: {e}")
             raise
 
+        print(np.linalg.eigvalsh(self.K_inv))
         # Calculate the dual variables alpha = K_inv @ y
         # This is equivalent to solving K @ alpha = y
         self.alpha = self.K_inv @ self.train_labels
@@ -263,7 +268,7 @@ class QuantumKernelRegression:
         print(f"Computing kernel matrix for {n_test_samples} test samples against {n_train_samples} training samples...")
         for m in range(n_test_samples):
             for i in range(n_train_samples):
-                kernel_test_train[m, i] = quantum_kernel(new_density_matrices[m],
+                kernel_test_train[m, i] = overlap(new_density_matrices[m],
                                                          self.train_density_matrices[i])
         print("Kernel matrix computation for test samples complete.")
 
@@ -367,7 +372,7 @@ class QuantumKernelRegression2:
         gram_matrix_reg = gram_matrix + self.regularization_lambda * np.eye(n_samples)
 
         try:
-            self.K_inv = np.linalg.inv(gram_matrix_reg)
+            self.K_inv = np.linalg.pinv(gram_matrix_reg)
         except np.linalg.LinAlgError as e:
             raise RuntimeError(f"Gram matrix could not be inverted. Error: {e}")
 
@@ -554,7 +559,7 @@ class QuantumKernelRegression3:
         # Clipping handles tiny floating-point errors (e.g., 1.000000002)
         exact_overlap = np.clip(exact_overlap, 0.0, 1.0)
         
-        # 1. Determine the exact theoretical probability of the measurement
+        # Determine the exact theoretical probability of the measurement for the chosen kernel type
         if self.kernel_type == "swap":
             # SWAP test measures an ancilla: P(0) = 0.5 * (1 + Tr)
             p_exact = 0.5 * (1.0 + exact_overlap)
@@ -566,7 +571,8 @@ class QuantumKernelRegression3:
         else:
             raise ValueError(f"Unknown kernel_type: {self.kernel_type}")
 
-        # 2. Apply Shot Noise
+
+        # Apply Shot Noise if num_shots is specified
         if self.num_shots is None:
             # Theoretical limit (infinite shots)
             return p_exact
@@ -574,6 +580,7 @@ class QuantumKernelRegression3:
             # Finite shots (Binomial sampling simulating the circuit measurements)
             measured_successes = np.random.binomial(n=self.num_shots, p=p_exact)
             return measured_successes / self.num_shots
+
 
     def fit(self, density_matrices: Union[List[np.ndarray], np.ndarray], 
                   labels: Union[List[float], np.ndarray], 
@@ -586,7 +593,7 @@ class QuantumKernelRegression3:
 
         self.train_density_matrices = density_matrices
         self.train_labels = np.asarray(labels)
-        self.kernel_type = kernel_type.lower() 
+        self.kernel_type = kernel_type.lower() #fix the kernel type to be lowercase to avoid user errors
 
         n_samples = len(self.train_density_matrices)
         gram_matrix = np.zeros((n_samples, n_samples), dtype=float)
