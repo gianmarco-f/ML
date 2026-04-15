@@ -21,7 +21,7 @@ Z = np.array([[1,  0],
 
 def  generate_dataset_pauli(N_training, N_test):
     """
-    Generate a data of random quantum states (qubits) and their corresponding expectation values of the Pauli matrices.
+    Generate a dataset of random quantum states (qubits) and their corresponding expectation values of the Pauli matrices.
 
     Args:
         N_training (int): Number of training samples to generate.
@@ -142,9 +142,9 @@ def plot_bloch_sphere(points):
 
 
 
-def quantum_kernel(rho1: np.ndarray, rho2: np.ndarray) -> complex:
+def overlap(rho1: np.ndarray, rho2: np.ndarray) -> complex:
     """
-    Computes the quantum kernel K(rho1, rho2) = Tr[rho1 @ rho2].
+    Computes the overlap Tr[rho1 @ rho2] (Hilbert-Schmidt inner product).
     Assumes rho1 and rho2 are valid density matrices.
     """
     # Matrix multiplication followed by trace
@@ -282,7 +282,7 @@ class QuantumKernelRegression:
 class QuantumKernelRegression2:
     """
     Implements a kernel regression model using quantum kernels.
-    Supports SWAP/Trace kernels and finite measurement statistics (shot noise).
+    Supports SWAP test/Loschmidt Echo test and finite measurement statistics (shot noise).
     """
     def __init__(self, regularization_lambda: float = 1e-6, num_shots: int = None):
         """
@@ -522,3 +522,116 @@ class QuantumExtremeLearningMachine:
         
         # Predict: y_hat = P_test @ W
         return P_test @ self.W
+
+
+class QuantumKernelRegression3:
+    """
+    Implements a kernel regression model using quantum kernels.
+    Supports SWAP test/Loschmidt Echo test and finite measurement statistics (shot noise).
+    """
+    def __init__(self, regularization_lambda: float = 1e-6, num_shots: int = None):
+        """
+        Args:
+            regularization_lambda: Adds to the diagonal to ensure invertibility.
+            num_shots: Number of measurements for finite statistics. 
+                       If None, computes exact theoretical expectations.
+        """
+        self.regularization_lambda = regularization_lambda
+        self.num_shots = num_shots
+        self.train_density_matrices = None
+        self.train_labels = np.array([])
+        self.K_inv = np.array([]) 
+        self.alpha = np.array([]) 
+        self.kernel_type = "trace" 
+
+
+    def kerenel_evaluation_with_noise(self, exact_overlap: float) -> float:
+        """
+        Applies the correct physical measurement formula and binomial shot noise
+        based on the chosen quantum circuit protocol.
+        """
+        # Exact overlap Tr[rho1 rho2] should strictly be between 0 and 1
+        # Clipping handles tiny floating-point errors (e.g., 1.000000002)
+        exact_overlap = np.clip(exact_overlap, 0.0, 1.0)
+        
+        # 1. Determine the exact theoretical probability of the measurement
+        if self.kernel_type == "swap":
+            # SWAP test measures an ancilla: P(0) = 0.5 * (1 + Tr)
+            p_exact = 0.5 * (1.0 + exact_overlap)
+            
+        elif self.kernel_type in ["trace", "le", "loschmidt"]:
+            # Loschmidt Echo measures the ground state: P(0..0) = Tr
+            p_exact = exact_overlap
+            
+        else:
+            raise ValueError(f"Unknown kernel_type: {self.kernel_type}")
+
+        # 2. Apply Shot Noise
+        if self.num_shots is None:
+            # Theoretical limit (infinite shots)
+            return p_exact
+        else:
+            # Finite shots (Binomial sampling simulating the circuit measurements)
+            measured_successes = np.random.binomial(n=self.num_shots, p=p_exact)
+            return measured_successes / self.num_shots
+
+    def fit(self, density_matrices: Union[List[np.ndarray], np.ndarray], 
+                  labels: Union[List[float], np.ndarray], 
+                  kernel_type: str = "trace"):
+        
+        if density_matrices is None or len(density_matrices) == 0:
+            raise ValueError("Training density matrices cannot be empty.")
+        if len(density_matrices) != len(labels):
+            raise ValueError("Number of density matrices must match number of labels.")
+
+        self.train_density_matrices = density_matrices
+        self.train_labels = np.asarray(labels)
+        self.kernel_type = kernel_type.lower() 
+
+        n_samples = len(self.train_density_matrices)
+        gram_matrix = np.zeros((n_samples, n_samples), dtype=float)
+
+        for i in range(n_samples):
+            # We measure each pair (i, j) only once to save shots and ensure the 
+            # resulting estimated matrix is perfectly symmetric!
+            for j in range(i, n_samples): 
+                exact_overlap = self._compute_raw_overlap(self.train_density_matrices[i],
+                                                          self.train_density_matrices[j])
+                
+                # Apply physics + noise
+                val = self._apply_physics_and_noise(exact_overlap)
+                
+                gram_matrix[i, j] = val
+                if i != j:
+                    gram_matrix[j, i] = val
+
+        # Regularization is EXTRA important with shot noise
+        gram_matrix_reg = gram_matrix + self.regularization_lambda * np.eye(n_samples)
+
+        try:
+            self.K_inv = np.linalg.inv(gram_matrix_reg)
+        except np.linalg.LinAlgError as e:
+            raise RuntimeError(f"Gram matrix could not be inverted. Error: {e}")
+
+        self.alpha = self.K_inv @ self.train_labels
+
+    def predict(self, new_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+        
+        if self.K_inv.size == 0 or self.alpha.size == 0:
+            raise RuntimeError("Model has not been fitted yet.")
+        if new_density_matrices is None or len(new_density_matrices) == 0:
+            return np.array([])
+
+        n_test_samples = len(new_density_matrices)
+        n_train_samples = len(self.train_density_matrices)
+        
+        kernel_test_train = np.zeros((n_test_samples, n_train_samples), dtype=float)
+
+        for m in range(n_test_samples):
+            for i in range(n_train_samples):
+                exact_overlap = self._compute_raw_overlap(new_density_matrices[m],
+                                                          self.train_density_matrices[i])
+                
+                kernel_test_train[m, i] = self._apply_physics_and_noise(exact_overlap)
+
+        return kernel_test_train @ self.alpha
