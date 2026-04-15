@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import List, Union, Tuple
+from scipy.linalg import sqrtm, inv
 
 #definition on Pauli matrices
 I = np.array([[1, 0],
@@ -392,3 +393,132 @@ class QuantumKernelRegression2:
                 kernel_test_train[m, i] = self._apply_physics_and_noise(exact_overlap)
 
         return kernel_test_train @ self.alpha
+
+def random_isometry(d_in: int, d_out: int) -> np.ndarray:
+    """Generates a random isometry V such that V^dagger @ V = I_din"""
+    X = (np.random.randn(d_out, d_out) + 1j * np.random.randn(d_out, d_out)) / np.sqrt(2)
+    Q, R = np.linalg.qr(X)
+    diag = np.diag(R)
+    phases = diag / np.abs(diag)
+    Q = Q * phases
+    return Q[:, :d_in]
+
+def generate_random_povm(dim: int, num_elements: int) -> List[np.ndarray]:
+    """Generates a random POVM with `num_elements` elements of dimension `dim`."""
+    elements = []
+    total_sum = np.zeros((dim, dim), dtype=complex)
+    
+    for _ in range(num_elements):
+        A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        M = A @ A.conj().T # Make positive semi-definite
+        elements.append(M)
+        total_sum += M
+        
+    # Normalize so they sum to Identity
+    normalization = inv(sqrtm(total_sum))
+    povm = [normalization @ E @ normalization for E in elements]
+    return povm
+
+class QuantumExtremeLearningMachine:
+    """
+    Quantum Extreme Learning Machine (QELM).
+    Embeds input states into a larger reservoir, traces out a subsystem, 
+    and measures a POVM. Uses pseudo-inverse to train a linear readout.
+    """
+    def __init__(self, 
+                 isometry: np.ndarray, 
+                 povm: List[np.ndarray], 
+                 bipartite_dims: Tuple[int, int], 
+                 keep_subsystem: int = 1,
+                 num_shots: int = None):
+        """
+        Args:
+            isometry: The V matrix defining the unitary embedding.
+            povm: A list of measurement operators for the reservoir.
+            bipartite_dims: A tuple (dim0, dim1) representing the composite space
+                            after the isometry (e.g., [2, 32] for d_out=64).
+            keep_subsystem: Index (0 or 1) of the subsystem to KEEP after partial trace.
+                            E.g., if dims=[2, 32] and keep=1, the 32-dim system is kept.
+            num_shots: Number of measurements for finite statistics (None for exact).
+        """
+        self.isometry = isometry
+        self.povm = povm
+        self.bipartite_dims = bipartite_dims
+        self.keep_subsystem = keep_subsystem
+        self.num_shots = num_shots
+        
+        self.W = np.array([]) # The trained readout weights
+        self.num_povm_elements = len(povm)
+
+    def _partial_trace(self, rho: np.ndarray) -> np.ndarray:
+        """Fast pure-NumPy partial trace using Einstein summation."""
+        d0, d1 = self.bipartite_dims
+        # Reshape to 4D tensor (out0, out1, in0, in1)
+        rho_tensor = rho.reshape((d0, d1, d0, d1))
+        
+        if self.keep_subsystem == 1:
+            # Trace out subsystem 0: sum over i
+            return np.einsum('ijil->jl', rho_tensor)
+        elif self.keep_subsystem == 0:
+            # Trace out subsystem 1: sum over j
+            return np.einsum('ijik->ik', rho_tensor)
+        else:
+            raise ValueError("keep_subsystem must be 0 or 1")
+
+    def _evolve_and_measure(self, rho: np.ndarray) -> np.ndarray:
+        """Evolves the state through the reservoir and simulates POVM measurement."""
+        # 1. Evolve: V * rho * V_dagger
+        rho_evolved = self.isometry @ rho @ self.isometry.conj().T
+        
+        # 2. Partial Trace
+        rho_res = self._partial_trace(rho_evolved)
+        
+        # 3. Compute Theoretical Probabilities: p_i = Tr(M_i * rho)
+        probs = np.array([np.real(np.trace(M @ rho_res)) for M in self.povm])
+        
+        # Numerical safeguard (ensure positive and sums to 1)
+        probs = np.clip(probs, 0.0, 1.0)
+        probs = probs / np.sum(probs)
+        
+        # 4. Apply Shot Noise
+        if self.num_shots is None or self.num_shots == 0:
+            return probs
+        else:
+            counts = np.random.multinomial(self.num_shots, probs)
+            return counts / self.num_shots
+
+    def get_features(self, density_matrices: List[np.ndarray]) -> np.ndarray:
+        """
+        Passes a list of density matrices through the reservoir and returns 
+        the probability matrix P (Features).
+        Returns: matrix of shape (N_samples, N_povm_elements)
+        """
+        N_samples = len(density_matrices)
+        P_matrix = np.zeros((N_samples, self.num_povm_elements))
+        
+        for idx, rho in enumerate(density_matrices):
+            P_matrix[idx, :] = self._evolve_and_measure(rho)
+            
+        return P_matrix
+
+    def fit(self, density_matrices: List[np.ndarray], labels: Union[List[float], np.ndarray]):
+        """Trains the QELM linear readout using Moore-Penrose pseudo-inverse."""
+        labels = np.asarray(labels)
+        
+        # Get probability vectors (Features matrix P)
+        P_train = self.get_features(density_matrices)
+        
+        # Standard ML solver: W = pinv(P) @ y
+        # Note: P is (N_train, N_povm), y is (N_train,) -> W is (N_povm,)
+        self.W = np.linalg.pinv(P_train) @ labels
+
+    def predict(self, new_density_matrices: List[np.ndarray]) -> np.ndarray:
+        """Predicts the labels for new density matrices."""
+        if self.W.size == 0:
+            raise RuntimeError("Model has not been fitted yet.")
+            
+        # Get probability vectors for test set
+        P_test = self.get_features(new_density_matrices)
+        
+        # Predict: y_hat = P_test @ W
+        return P_test @ self.W
