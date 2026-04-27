@@ -56,6 +56,31 @@ def partial_trace(rho, dims: Tuple[int,int], keep):
         raise ValueError("Invalid 'keep' index. Must be 0 or 1.")
     return reduced_rho
 
+def random_isometry(d_in: int, d_out: int) -> np.ndarray:
+    """Generates a random isometry V such that V^dagger @ V = I_din"""
+    X = (np.random.randn(d_out, d_out) + 1j * np.random.randn(d_out, d_out)) / np.sqrt(2)
+    Q, R = np.linalg.qr(X)
+    diag = np.diag(R)
+    phases = diag / np.abs(diag)
+    Q = Q * phases
+    return Q[:, :d_in]
+
+def generate_random_povm(dim: int, num_elements: int) -> List[np.ndarray]:
+    """Generates a random POVM with `num_elements` elements of dimension `dim`."""
+    elements = []
+    total_sum = np.zeros((dim, dim), dtype=complex)
+    
+    for _ in range(num_elements):
+        A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        M = A @ A.conj().T # Make positive semi-definite
+        elements.append(M)
+        total_sum += M
+        
+    # Normalize so they sum to Identity
+    normalization = inv(sqrtm(total_sum))
+    povm = [normalization @ E @ normalization for E in elements]
+    return povm
+
 
 def density_to_bloch(rho):
     x = np.real(np.trace(rho @ X))
