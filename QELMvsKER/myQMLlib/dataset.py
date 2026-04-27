@@ -41,6 +41,13 @@ class QuantumDatasetGenerator:
 
         print("Expectation values computed.")
 
+    def get_training_dataset(self):
+        return self.rho_training, self.expectation_training
+    
+    def get_test_dataset(self):
+        return self.rho_test, self.expectation_test
+
+
     def save_dataset(self, filename):
         """
         Save the generated dataset to a file.

@@ -1,6 +1,6 @@
 from .dataset import QuantumDatasetGenerator
 from .basics import I, X, Y, Z, partial_trace, HS_inner_product, density_to_bloch, plot_bloch_sphere, random_density_matrix, generate_dataset_pauli, random_isometry, generate_random_povm
-from .quantumkernel import QuantumKernelRegression3
+from .quantumkernel import QuantumKernelRegression
 from .qelm import QuantumExtremeLearningMachine
 
 

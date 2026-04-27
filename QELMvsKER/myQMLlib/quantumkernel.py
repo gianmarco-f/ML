@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List, Union, Tuple
 
-class QuantumKernelRegression3:
+class QuantumKernelRegression:
     """
     Implements a quantum kernel regression model.
     Supports SWAP test/Loschmidt Echo test and finite measurement statistics (shot noise).
