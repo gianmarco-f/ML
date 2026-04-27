@@ -48,10 +48,10 @@ def partial_trace(rho, dims: Tuple[int,int], keep):
     rho_tensor = rho.reshape(dims[0], dims[1], dims[0], dims[1])
     if keep == 0:
         # Keep subsystem 0, trace out subsystem 1
-        reduced_rho = np.einsum('ijkl->ik', rho_tensor)
+        reduced_rho = np.einsum('ijkj->ik', rho_tensor)
     elif keep == 1: 
         # Keep subsystem 1, trace out subsystem 0
-        reduced_rho = np.einsum('ijkl->jl', rho_tensor)
+        reduced_rho = np.einsum('ijil->jl', rho_tensor)
     else:
         raise ValueError("Invalid 'keep' index. Must be 0 or 1.")
     return reduced_rho
