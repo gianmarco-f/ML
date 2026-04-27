@@ -34,6 +34,29 @@ def HS_inner_product(rho1, rho2):
     #matrix multiplication and trace
     return np.trace(rho1 @ rho2)
 
+def partial_trace(rho, dims: Tuple[int,int], keep):
+    """
+    Fast pure-Numpy implementation of partial trace using Einstein summation.
+    
+    Args:
+        rho: The input density matrix (2D array).
+        dims: A list of dimensions of the subsystems (e.g., [2, 32]).
+        keep: The index of the subsystem to keep (0 or 1).
+
+    Returns the reduced density matrix after tracing out the other subsystem.
+    """
+    rho_tensor = rho.reshape(dims[0], dims[1], dims[0], dims[1])
+    if keep == 0:
+        # Keep subsystem 0, trace out subsystem 1
+        reduced_rho = np.einsum('ijkl->ik', rho_tensor)
+    elif keep == 1: 
+        # Keep subsystem 1, trace out subsystem 0
+        reduced_rho = np.einsum('ijkl->jl', rho_tensor)
+    else:
+        raise ValueError("Invalid 'keep' index. Must be 0 or 1.")
+    return reduced_rho
+
+
 def density_to_bloch(rho):
     x = np.real(np.trace(rho @ X))
     y = np.real(np.trace(rho @ Y))

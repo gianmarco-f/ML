@@ -1,6 +1,5 @@
 import numpy as np
-from typing import List, Union
-from .basics import HS_inner_product
+from typing import List, Union, Tuple
 
 class QuantumKernelRegression3:
     """
@@ -24,8 +23,14 @@ class QuantumKernelRegression3:
         self.alpha = np.array([]) 
         self.kernel_type = "trace" 
 
+    def _HS_inner_product(self, rho1, rho2):
+        """
+        Computes the Hilbert-Schmidt inner product between two density matrices rho1 and rho2.
+        """
+        #matrix multiplication and trace
+        return np.trace(rho1 @ rho2)
 
-    def kernel_evaluation_with_noise(self, HS_rho1_rho2: float) -> float:
+    def _kernel_evaluation_with_noise(self, HS_rho1_rho2: float) -> float:
         """
         Applies the correct physical measurement formula and shot noise
         based on the chosen quantum circuit protocol.
@@ -76,11 +81,11 @@ class QuantumKernelRegression3:
             # We measure each pair (i, j) only once to save shots and ensure the 
             # resulting estimated matrix is perfectly symmetric!
             for j in range(i, n_samples): 
-                exact_Tr = HS_inner_product(self.train_density_matrices[i],
+                exact_Tr = self._HS_inner_product(self.train_density_matrices[i],
                                                           self.train_density_matrices[j])
             
                 # Apply physics + noise
-                val = self.kernel_evaluation_with_noise(exact_Tr)
+                val = self._kernel_evaluation_with_noise(exact_Tr)
                 
                 gram_matrix[i, j] = val
                 if i != j:
@@ -111,9 +116,9 @@ class QuantumKernelRegression3:
 
         for m in range(n_test_samples):
             for i in range(n_train_samples):
-                exact_Tr = HS_inner_product(test_density_matrices[m],
+                exact_Tr = self._HS_inner_product(test_density_matrices[m],
                                                           self.train_density_matrices[i])
                 
-                kernel_test_train[m, i] = self.kernel_evaluation_with_noise(exact_Tr)
+                kernel_test_train[m, i] = self._kernel_evaluation_with_noise(exact_Tr)
 
         return kernel_test_train @ self.alpha
