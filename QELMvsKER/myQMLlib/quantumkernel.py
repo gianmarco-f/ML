@@ -41,7 +41,7 @@ class QuantumKernelRegression:
         
 
         # Apply Shot Noise if num_shots is specified
-        if self.num_shots is None:
+        if self.num_shots is None or self.num_shots == 0:
             # Theoretical limit (infinite shots):
             return HS_rho1_rho2
         else:

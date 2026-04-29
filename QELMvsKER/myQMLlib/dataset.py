@@ -25,7 +25,6 @@ class QuantumDatasetGenerator:
         self.rho_training = np.array([random_density_matrix(2) for i in range(self.N_training)])
         self.rho_test = np.array([random_density_matrix(2) for i in range(self.N_test)])
 
-        print("Density matrices generated.")
 
     def compute_expectation_values(self):
         """
@@ -39,7 +38,6 @@ class QuantumDatasetGenerator:
         self.expectation_training = np.array([np.trace(rho @ self.pauli_matrix) for rho in self.rho_training])
         self.expectation_test = np.array([np.trace(rho @ self.pauli_matrix) for rho in self.rho_test])
 
-        print("Expectation values computed.")
 
     def get_training_dataset(self):
         return self.rho_training, self.expectation_training
