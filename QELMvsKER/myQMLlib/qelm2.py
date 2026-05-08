@@ -18,7 +18,7 @@ class QuantumExtremeLearningMachine:
         self.W = np.array([]) 
         self.num_povm_elements = len(povm)
 
-    def get_features(self, density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+    def get_features_vec(self, density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
         """
         Passes a batch of density matrices through the reservoir simultaneously.
         """
@@ -59,13 +59,13 @@ class QuantumExtremeLearningMachine:
             counts = np.array([np.random.multinomial(self.num_shots, p) for p in probs])
             return counts / self.num_shots
     
-    def fit(self, density_matrices: Union[List[np.ndarray], np.ndarray], labels: Union[List[float], np.ndarray]):
+    def fit_vec(self, density_matrices: Union[List[np.ndarray], np.ndarray], labels: Union[List[float], np.ndarray]):
         labels = np.asarray(labels)
-        P_train = self.get_features(density_matrices)
+        P_train = self.get_features_vec(density_matrices)
         self.W = np.linalg.pinv(P_train) @ labels
 
     def predict(self, new_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
         if self.W.size == 0:
             raise RuntimeError("Model has not been fitted yet.")
-        P_test = self.get_features(new_density_matrices)
+        P_test = self.get_features_vec(new_density_matrices)
         return P_test @ self.W
