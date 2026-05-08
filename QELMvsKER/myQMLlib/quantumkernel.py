@@ -21,7 +21,8 @@ class QuantumKernelRegression:
         self.train_labels = np.array([])
         self.K_inv = np.array([]) 
         self.alpha = np.array([]) 
-        self.kernel_type = "trace" 
+        self.kernel_type = "trace"
+        self.kernel_matrix = None 
 
     def _HS_inner_product(self, rho1, rho2):
         """
@@ -93,6 +94,7 @@ class QuantumKernelRegression:
 
         # Regularization is EXTRA important with shot noise
         gram_matrix_reg = gram_matrix + self.regularization_lambda * np.eye(n_samples)
+        self.kernel_matrix = gram_matrix_reg  # Store the regularized kernel matrix for potential debugging/analysis
 
         try:
             # We use pseudo-inverse to handle potential numerical issues, but we also catch exceptions to provide clearer error messages
@@ -101,6 +103,11 @@ class QuantumKernelRegression:
             raise RuntimeError(f"Gram matrix could not be inverted. Error: {e}")
 
         self.alpha = self.K_inv @ self.train_labels
+
+    def get_kernel_matrix(self):
+        if self.kernel_matrix is None:
+            raise RuntimeError("Kernel matrix has not been computed yet. Call fit() first.")
+        return self.kernel_matrix
 
     def predict(self, test_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
         

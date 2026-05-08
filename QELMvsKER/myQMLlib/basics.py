@@ -72,13 +72,22 @@ def generate_random_povm(dim: int, num_elements: int) -> List[np.ndarray]:
     
     for _ in range(num_elements):
         A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
-        M = A @ A.conj().T # Make positive semi-definite
+        M = A @ A.conj().T 
         elements.append(M)
         total_sum += M
         
     # Normalize so they sum to Identity
     normalization = inv(sqrtm(total_sum))
     povm = [normalization @ E @ normalization for E in elements]
+    return povm
+
+def generate_computational_povm(dim: int) -> List[np.ndarray]:
+    """Generates a POVM corresponding to computational basis measurements."""
+    povm = []
+    for i in range(dim):
+        E = np.zeros((dim, dim), dtype=complex)
+        E[i, i] = 1.0
+        povm.append(E)
     return povm
 
 
