@@ -1,8 +1,8 @@
 import numpy as np
 # Assuming random_density_matrix handles dimension 'd' correctly:
-from .basics import random_density_matrix 
+from .basics import random_density_matrix , random_density_matrices_vec
 
-class QuantumDatasetGenerator2:
+class QuantumDatasetGenerator:
     def __init__(self, N_training, N_test, observable):
         """
         Initialize the dataset generator for qudits of dimension d (= 2^n).
@@ -34,6 +34,13 @@ class QuantumDatasetGenerator2:
         self.rho_training = np.array([random_density_matrix(self.d) for _ in range(self.N_training)])
         self.rho_test = np.array([random_density_matrix(self.d) for _ in range(self.N_test)])
 
+    def generate_density_matrices_vec(self):
+        """
+        Generate random density matrices of dimension d for training and test sets using the vectorized backend.
+        """
+        self.rho_training = random_density_matrices_vec(self.d, self.N_training)
+        self.rho_test = random_density_matrices_vec(self.d, self.N_test)
+
     def compute_expectation_values(self):
         """
         Compute the expectation values of Tr(rho @ Observable) for the training and test sets.
@@ -50,6 +57,15 @@ class QuantumDatasetGenerator2:
         self.expectation_test = np.real(
             np.array([np.trace(rho @ self.observable) for rho in self.rho_test])
         )
+
+    def compute_expectation_values_vec(self):
+        if self.rho_training is None or self.rho_test is None:
+            raise ValueError("Density matrices not generated yet.")
+        
+        # Highly optimized vectorized trace operation 
+        self.expectation_training = np.real(np.einsum('nij,ji->n', self.rho_training, self.observable))
+        self.expectation_test = np.real(np.einsum('nij,ji->n', self.rho_test, self.observable))
+
 
     def get_training_dataset(self):
         return self.rho_training, self.expectation_training
