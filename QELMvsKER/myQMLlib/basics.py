@@ -27,6 +27,16 @@ def random_density_matrix(dim):
     rho = A / np.trace(A)
     return rho
 
+# --- NEW OPTIMIZED FUNCTION ---
+def random_density_matrices_vec(dim, N):
+    """Generates N random density matrices of dimension dim simultaneously."""
+    A = np.random.randn(N, dim, dim) + 1j * np.random.randn(N, dim, dim)
+    A = (A + A.conj().transpose(0, 2, 1)) / 2
+    rho = A @ A.conj().transpose(0, 2, 1)
+    # Fast vectorized trace and normalization
+    traces = np.trace(rho, axis1=1, axis2=2)[:, np.newaxis, np.newaxis]
+    return rho / traces
+
 def HS_inner_product(rho1, rho2):
     """
     Computes the Hilbert-Schmidt inner product between two density matrices rho1 and rho2.
