@@ -64,7 +64,7 @@ class QuantumExtremeLearningMachine:
         P_train = self.get_features_vec(density_matrices)
         self.W = np.linalg.pinv(P_train) @ labels
 
-    def predict(self, new_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+    def predict_vec(self, new_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
         if self.W.size == 0:
             raise RuntimeError("Model has not been fitted yet.")
         P_test = self.get_features_vec(new_density_matrices)
