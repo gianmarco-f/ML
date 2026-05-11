@@ -16,7 +16,7 @@ class QuantumKernelRegression2:
         self.kernel_type = "trace"
         self.kernel_matrix = None 
 
-    def _apply_noise(self, probs: np.ndarray) -> np.ndarray:
+    def _apply_noise_vec(self, probs: np.ndarray) -> np.ndarray:
         """Applies vectorized binomial shot noise to a full matrix of probabilities simultaneously."""
         probs = np.clip(probs, 0.0, 1.0)
         
@@ -32,7 +32,7 @@ class QuantumKernelRegression2:
         else:
             raise ValueError(f"Unknown kernel_type: {self.kernel_type}")
 
-    def fit(self, density_matrices_training: Union[List[np.ndarray], np.ndarray], 
+    def fit_vec(self, density_matrices_training: Union[List[np.ndarray], np.ndarray], 
                   labels_training: Union[List[float], np.ndarray], 
                   kernel_type: str = "trace"):
         
@@ -52,7 +52,7 @@ class QuantumKernelRegression2:
                                      self.train_density_matrices))
 
         # Apply physics + noise to the entire matrix instantly
-        gram_matrix = self._apply_noise(exact_Tr)
+        gram_matrix = self._apply_noise_vec(exact_Tr)
 
         # Enforce exact symmetry (noise can break perfect symmetry slightly)
         # We simulate measuring pairs only once by taking the upper triangle
@@ -76,7 +76,7 @@ class QuantumKernelRegression2:
             raise RuntimeError("Kernel matrix has not been computed yet.")
         return self.kernel_matrix
 
-    def predict(self, test_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+    def predict_vec(self, test_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
         if self.K_inv.size == 0 or self.alpha.size == 0:
             raise RuntimeError("Model has not been fitted yet.")
         if test_density_matrices is None or len(test_density_matrices) == 0:
@@ -86,6 +86,6 @@ class QuantumKernelRegression2:
         
         # Vectorized evaluation for test dataset
         exact_Tr = np.real(np.einsum('mab,nba->mn', test_dm, self.train_density_matrices))
-        kernel_test_train = self._apply_noise(exact_Tr)
+        kernel_test_train = self._apply_noise_vec(exact_Tr)
 
         return kernel_test_train @ self.alpha
