@@ -6,7 +6,7 @@ class QuantumKernelRegression:
     Implements a quantum kernel regression model.
     Supports SWAP test/Loschmidt Echo test and finite measurement statistics (shot noise).
     """
-    def __init__(self, regularization_lambda: float = 1e-6, num_shots: int = None):
+    def __init__(self, regularization_lambda: float = 1e-6, num_shots: int = None, r_cond = 1e-15):
         """
         Args:
             regularization_lambda: Adds to the diagonal to ensure invertibility.
@@ -22,7 +22,8 @@ class QuantumKernelRegression:
         self.K_inv = np.array([]) 
         self.alpha = np.array([]) 
         self.kernel_type = "trace"
-        self.kernel_matrix = None 
+        self.kernel_matrix = None
+        self.r_cond = r_cond
 
     def _HS_inner_product(self, rho1, rho2):
         """
@@ -152,7 +153,7 @@ class QuantumKernelRegression:
         self.kernel_matrix = gram_matrix_reg  
 
         try:
-            self.K_inv = np.linalg.pinv(gram_matrix_reg)
+            self.K_inv = np.linalg.pinv(gram_matrix_reg, rcond=self.r_cond)
         except np.linalg.LinAlgError as e:
             raise RuntimeError(f"Gram matrix could not be inverted. Error: {e}")
 

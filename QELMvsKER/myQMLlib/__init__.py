@@ -3,7 +3,7 @@ from .basics import I, X, Y, Z, partial_trace, HS_inner_product, density_to_bloc
 from .quantumkernel import QuantumKernelRegression
 from .qelm import QuantumExtremeLearningMachine
 from .dataset2 import QuantumDatasetGenerator
-from .quantumkernel import QuantumKernelRegression
+
 
 
 
