@@ -1,0 +1,18 @@
+Hello. I'm writing some python code for my project. My project is a bout Quantum
+Machine Learning. In particular I am working on the comparison between different
+types of quantum machine learning models. The models which I am considering are
+Quantum Extreme Learning Machine and Quantum Kernel Methods ( in two version,
+Trace test and SWAP test). The code I uploaded to you ("script.py") is a code in
+which I compare the MSE of the different models (in different realizations) as a
+function of the training dataset. In particular at the moment I am looking at
+the case of num_shots = 0 which means theoretical exact results ( or infinite
+shots if you want). Now clearly I will consider also the case of finite number
+of shot (shot noise), but today I would like you to help me with another task. I
+would like to write a code which allows as to compare the three different models
+as the size of the input system grows. I already tried to do something in the
+code "scaling.py" which I attached here. There is a way to optimize it in a way
+similar to what is done in script.py where I generate the biggest dataset and
+then I cut? Is possibile to do something similar here with input states? I don't
+know I have some doubts about that. Can you help me? Thank you.
+
+
