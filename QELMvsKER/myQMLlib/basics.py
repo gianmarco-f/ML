@@ -16,6 +16,12 @@ Y = np.array([[0, -1j],
 Z = np.array([[1,  0],
               [0, -1]], dtype=complex)
 
+_PAULI_MATRICES = [X, Y, Z]
+
+#function to randomly pick one of the Pauli matrices
+def random_pauli():
+    return _PAULI_MATRICES[np.random.randint(0, 3)]
+
 def random_density_matrix(dim):
     #generate a random complex matrix
     A = np.random.rand(dim, dim) + 1j * np.random.rand(dim, dim)
