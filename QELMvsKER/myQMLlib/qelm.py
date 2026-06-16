@@ -135,6 +135,49 @@ class QuantumExtremeLearningMachine:
             # (which is small enough to be extremely fast)
             counts = np.array([np.random.multinomial(self.num_shots, p) for p in probs])
             return counts / self.num_shots
+        
+
+    def get_features_vec_2(self, density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+        """
+        Passes a batch of density matrices through the reservoir simultaneously.
+        """
+        rho = np.asarray(density_matrices)
+        N_samples = rho.shape[0]
+        
+        # 1. EVOLVE (Batch mode)
+        # V @ rho @ V^dagger implemented via tensor contraction
+        rho_evolved = np.einsum('oa,nab,pb->nop', self.isometry, rho, self.isometry.conj())
+
+        # 2. PARTIAL TRACE (Batch mode)
+        d0, d1 = self.bipartite_dims
+        rho_tensor = rho_evolved.reshape(N_samples, d0, d1, d0, d1)
+        
+        if self.keep_subsystem == 0:
+            # Trace out subsystem 1
+            rho_reduced = np.einsum('nijkj->nik', rho_tensor)
+        elif self.keep_subsystem == 1: 
+            # Trace out subsystem 0
+            rho_reduced = np.einsum('nijil->njl', rho_tensor)
+        else:
+            raise ValueError("Invalid 'keep_subsystem' index.")
+
+        # 3. MEASURE (Batch mode)
+        # Tr(M @ rho_reduced) for all POVMs and all samples
+        probs = np.real(np.einsum('mab,nba->mn', self.povm_array, rho_reduced))
+
+        # Numerical stability: clip and renormalize along the POVM axis
+        probs = np.clip(probs, 0.0, 1.0)
+        probs = probs / np.sum(probs, axis=0, keepdims=True)
+
+        # 4. APPLY SHOT NOISE
+        if self.num_shots is None or self.num_shots == 0:
+            return probs
+        else:
+            # np.random.multinomial requires iterating over the sample axis 
+            # (which is small enough to be extremely fast)
+            counts = np.array([np.random.multinomial(self.num_shots, p) for p in probs])
+            return counts / self.num_shots
+        
     
     def fit(self, density_matrices: List[np.ndarray], labels: Union[List[float], np.ndarray]):
         """Trains the QELM linear readout using Moore-Penrose pseudo-inverse."""
@@ -151,6 +194,12 @@ class QuantumExtremeLearningMachine:
         labels = np.asarray(labels)
         P_train = self.get_features_vec(density_matrices)
         self.W = np.linalg.pinv(P_train) @ labels
+
+        
+    def fit_vec_2(self, density_matrices: Union[List[np.ndarray], np.ndarray], labels: Union[List[float], np.ndarray]):
+        labels = np.asarray(labels)
+        P_train = self.get_features_vec_2(density_matrices)
+        self.W = labels @ np.linalg.pinv(P_train)
 
 
 
@@ -170,3 +219,9 @@ class QuantumExtremeLearningMachine:
             raise RuntimeError("Model has not been fitted yet.")
         P_test = self.get_features_vec(new_density_matrices)
         return P_test @ self.W
+    
+    def predict_vec_2(self, new_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+        if self.W.size == 0:
+            raise RuntimeError("Model has not been fitted yet.")
+        P_test = self.get_features_vec_2(new_density_matrices)
+        return self.W @ P_test
