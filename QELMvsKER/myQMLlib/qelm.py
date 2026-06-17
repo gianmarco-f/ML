@@ -175,7 +175,7 @@ class QuantumExtremeLearningMachine:
         else:
             # np.random.multinomial requires iterating over the sample axis 
             # (which is small enough to be extremely fast)
-            counts = np.array([np.random.multinomial(self.num_shots, p) for p in probs])
+            counts = np.array([np.random.multinomial(self.num_shots, p) for p in probs.T]).T
             return counts / self.num_shots
         
     
