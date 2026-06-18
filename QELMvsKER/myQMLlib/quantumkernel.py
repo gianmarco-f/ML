@@ -131,7 +131,7 @@ class QuantumKernelRegression:
         self.train_labels = np.asarray(labels_training)
         self.kernel_type = kernel_type.lower() 
 
-        # --- MASSIVE SPEEDUP HERE ---
+        
         # Instead of a nested double loop, we compute the Hilbert-Schmidt inner 
         # products for all pairs simultaneously using Einstein Summation
         # Tr(A @ B) for all pairs = np.einsum('iab,jba->ij', A, B)

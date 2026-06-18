@@ -225,3 +225,93 @@ class QuantumExtremeLearningMachine:
             raise RuntimeError("Model has not been fitted yet.")
         P_test = self.get_features_vec_2(new_density_matrices)
         return self.W @ P_test
+
+
+
+    def _generate_operator_basis(self, dim: int) -> np.ndarray:
+        """
+        Generates a complete orthonormal basis of d^2 Hermitian matrices for d x d matrices.
+        This represents the generalized Bloch vector + Identity basis.
+        """
+        basis = []
+        
+        # 1. Diagonal elements (acts as the Identity/Z components)
+        for j in range(dim):
+            E = np.zeros((dim, dim), dtype=complex)
+            E[j, j] = 1.0
+            basis.append(E)
+
+        # 2. Off-diagonal elements (acts as the X and Y components)
+        for j in range(dim):
+            for k in range(j + 1, dim):
+                # Symmetric (X-like)
+                Sym = np.zeros((dim, dim), dtype=complex)
+                Sym[j, k] = 1.0 / np.sqrt(2)
+                Sym[k, j] = 1.0 / np.sqrt(2)
+                basis.append(Sym)
+
+                # Anti-symmetric (Y-like)
+                Asym = np.zeros((dim, dim), dtype=complex)
+                Asym[j, k] = -1j / np.sqrt(2)
+                Asym[k, j] = 1j / np.sqrt(2)
+                basis.append(Asym)
+
+        return np.array(basis)  # Shape: (d^2, dim, dim)
+
+    def vectorize_density_matrices(self, density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+        """
+        Vectorizes a batch of density matrices by projecting them onto a Hermitian operator basis.
+        Returns matrix M of shape (d^2, N_samples) where M_ij = Tr(Basis_i @ rho_j)
+        """
+        rho = np.asarray(density_matrices)
+        N_samples = rho.shape[0]
+        dim = rho.shape[1]
+
+        # Get the basis of size d^2
+        basis = self._generate_operator_basis(dim)
+
+        # Calculate M_ij = Tr(Basis_i @ rho_j)
+        # using einsum: 'iab' is basis, 'nba' is rho transposed. Result 'in' is (d^2, N_samples)
+        M = np.real(np.einsum('iab,nba->in', basis, rho))
+
+        return M
+
+    def fit_vec_3(self, density_matrices: Union[List[np.ndarray], np.ndarray], labels: Union[List[float], np.ndarray]):
+        """
+        Modified fit method based on W = y @ M^T @ (P @ M^T)^+
+        """
+        labels = np.asarray(labels) # Shape: (N_samples,)
+        
+        # P_train shape: (N_povm, N_samples)
+        P_train = self.get_features_vec_2(density_matrices)
+        
+        # M shape: (d^2, N_samples)
+        M = self.vectorize_density_matrices(density_matrices)
+        
+        # M.T shape: (N_samples, d^2)
+        M_T = M.T
+        
+        # P @ M^T shape: (N_povm, d^2)
+        P_MT = P_train @ M_T
+        
+        # (P @ M^T)^+ shape: (d^2, N_povm)
+        P_MT_pinv = np.linalg.pinv(P_MT)
+        
+        # y @ M^T shape: (d^2,)
+        y_MT = labels @ M_T
+        
+        # Final W shape: (d^2,) @ (d^2, N_povm) = (N_povm,)
+        self.W = y_MT @ P_MT_pinv
+
+    def predict_vec_3(self, new_density_matrices: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+        """
+        Prediction method (Remains exactly the same!)
+        """
+        if self.W.size == 0:
+            raise RuntimeError("Model has not been fitted yet.")
+            
+        # P_test shape: (N_povm, N_samples)
+        P_test = self.get_features_vec_2(new_density_matrices)
+        
+        # Shape: (N_povm,) @ (N_povm, N_samples) = (N_samples,)
+        return self.W @ P_test
